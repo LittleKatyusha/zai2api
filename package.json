@@ -1,0 +1,31 @@
+{
+  "name": "nodez2ai",
+  "version": "1.0.0",
+  "description": "Z.AI (chat.z.ai) OpenAI-compatible gateway in Node.js",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "collect": "node src/collector.js",
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "openai",
+    "z-ai",
+    "glm",
+    "proxy",
+    "gateway"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "https-proxy-agent": "^7.0.6",
+    "playwright-core": "^1.49.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "socks-proxy-agent": "^8.0.5"
+  }
+}
