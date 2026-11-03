@@ -56,7 +56,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
     <div class="row"><span class="row-label">Proxy</span><span class="badge badge-green" id="proxyBadge">running</span></div>
     <div class="row"><span class="row-label">Port</span><span class="row-value" id="portVal">—</span></div>
     <div class="row"><span class="row-label">Endpoint</span><span class="endpoint" id="endpointVal">—</span></div>
-    <div class="row"><span class="row-label">Token DB</span><span class="row-value" id="tokenCountVal"><span class="loading">loading…</span></span></div>
+    <div class="row"><span class="row-label">Captcha Tokens</span><span class="row-value" id="tokenCountVal"><span class="loading">loading…</span></span></div>
+    <div class="row"><span class="row-label">Account Pool</span><span class="row-value" id="accountCountVal"><span class="loading">loading…</span></span></div>
     <div class="row"><span class="row-label">User</span><span class="row-value" id="userVal">—</span></div>
     <div class="row"><span class="row-label">FE Version</span><span class="row-value" id="feVerVal" style="font-size:12px">—</span></div>
     <div class="row"><span class="row-label">Sessions</span><span class="row-value" id="sessionsVal">0</span></div>
@@ -112,6 +113,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
     </div>
   </div>
 
+  <!-- Account Tokens Pool -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <div class="card-title">Account Tokens Pool (ZAI_TOKEN)</div>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <textarea id="accTokenInput" rows="2" placeholder="Paste ZAI_TOKEN JWT (one per line, e.g. eyJhbGci...)" style="flex:1; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#c9d1d9; padding:8px; font-family:monospace; font-size:12px; resize:vertical;"></textarea>
+      <button onclick="addAccountTokens()" style="background:#238636; color:#fff; border:1px solid #2ea043; border-radius:6px; padding:0 16px; cursor:pointer; font-weight:600; font-size:12px;">Add Token(s)</button>
+    </div>
+    <div id="accTokensList" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;"></div>
+  </div>
+
   <!-- Test -->
   <div class="card" style="grid-column: 1 / -1;">
     <div class="card-title">Test the OpenAI Endpoint</div>
@@ -161,6 +172,7 @@ async function refresh() {
     document.getElementById('portVal').textContent = d.port || '—';
     document.getElementById('endpointVal').textContent = 'http://127.0.0.1:' + (d.port || '8080') + '/v1';
     document.getElementById('tokenCountVal').textContent = (d.tokenCount != null ? d.tokenCount + ' tokens' : '—');
+    document.getElementById('accountCountVal').textContent = (d.accountTokenCount != null ? d.accountTokenCount + ' accounts' : '0 accounts');
     document.getElementById('userVal').textContent = d.userName || '—';
     document.getElementById('feVerVal').textContent = d.feVersion || '—';
     document.getElementById('sessionsVal').textContent = d.activeSessions || 0;
@@ -172,6 +184,52 @@ async function refresh() {
     setFeature('featPreview', f.previewMode);
     setFeature('featPersist', f.persistHistory);
   } catch(e) { console.error('dashboard refresh error:', e); }
+}
+
+async function loadAccountTokens() {
+  try {
+    var res = await fetch('/admin/account-tokens');
+    var d = await res.json();
+    var list = document.getElementById('accTokensList');
+    if (!list) return;
+    if (!d.tokens || d.tokens.length === 0) {
+      list.innerHTML = '<div style="font-size:12px;color:#8b949e;padding:6px 0;">No pooled account tokens. Requests use .env ZAI_TOKEN or Guest mode.</div>';
+      return;
+    }
+    list.innerHTML = d.tokens.map(function(t) {
+      return '<div class="row" style="padding:6px 0;">' +
+        '<span style="font-family:monospace;font-size:12px;color:#e6edf3;">' +
+        (t.email ? '<span style="color:#79c0ff;margin-right:8px;">' + t.email + '</span>' : '') +
+        '<span style="color:#8b949e;">' + t.maskedToken + '</span>' +
+        '</span>' +
+        '<button onclick="deleteAccountToken(' + t.id + ')" style="background:#3a1a1a;color:#f85149;border:1px solid #da3633;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Delete</button>' +
+        '</div>';
+    }).join('');
+  } catch(e) { console.error('loadAccountTokens error:', e); }
+}
+
+async function addAccountTokens() {
+  var input = document.getElementById('accTokenInput');
+  var val = (input.value || '').trim();
+  if (!val) return;
+  try {
+    await fetch('/admin/account-tokens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: val })
+    });
+    input.value = '';
+    loadAccountTokens();
+    refresh();
+  } catch(e) { console.error('addAccountTokens error:', e); }
+}
+
+async function deleteAccountToken(id) {
+  try {
+    await fetch('/admin/account-tokens/' + id, { method: 'DELETE' });
+    loadAccountTokens();
+    refresh();
+  } catch(e) { console.error('deleteAccountToken error:', e); }
 }
 
 function toggleFeat(key, el) {
@@ -187,6 +245,7 @@ function toggleFeat(key, el) {
 }
 
 refresh();
+loadAccountTokens();
 setInterval(refresh, 5000);
 </script>
 </body>

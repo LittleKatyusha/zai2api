@@ -215,8 +215,9 @@ async function startServer() {
 
   app.get('/status', (req, res) => {
     const snap = zaiSession.snapshot();
+    const accCount = tokens ? tokens.countAccountTokens() : 0;
     res.json({
-      connected: snap.initialized,
+      connected: snap.initialized || accCount > 0,
       userName: snap.userName,
       userId: snap.initialized ? snap.userId : '',
       feVersion: snap.feVersion,
@@ -225,15 +226,18 @@ async function startServer() {
       mode: 'direct',
       port: String(config.port),
       tokenCount: tokens.count(),
+      accountTokenCount: accCount,
     });
   });
 
   app.get('/healthz', (req, res) => {
     const tokenCount = tokens.count();
+    const accCount = tokens ? tokens.countAccountTokens() : 0;
     res.json({
       ok: true,
-      healthy: zaiSession.initialized,
+      healthy: zaiSession.initialized || accCount > 0,
       tokenCount: tokenCount,
+      accountTokenCount: accCount,
       hasToken: tokenCount > 0,
       model: DEFAULT_MODEL,
       authEnabled: config.authEnabled,
@@ -269,7 +273,7 @@ async function startServer() {
         .json(formatOpenAIError('messages is required and must be an array', 'invalid_request_error'));
     }
 
-    const hasZaiToken = Boolean(config.zaiToken);
+    const hasZaiToken = Boolean(config.zaiToken || (tokens && tokens.countAccountTokens() > 0));
     const model = normalizeModel(body.model, hasZaiToken);
     const sessionID = req.headers['x-session-id'] || 'default';
     const fresh = req.headers['x-fresh-session'] === 'true';
@@ -309,7 +313,7 @@ async function startServer() {
     const convertedMsgs = convertToolMessages(reqBody.messages, reqBody.tools);
     const convertedPrompt = messagesToPrompt(convertedMsgs);
 
-    const hasZaiToken = Boolean(config.zaiToken);
+    const hasZaiToken = Boolean(config.zaiToken || (tokens && tokens.countAccountTokens() > 0));
     const opts = {
       model: normalizeModel(reqBody.model, hasZaiToken),
       webSearch: Boolean(reqBody.webSearch ?? reqBody.search ?? features.webSearch),
@@ -620,6 +624,36 @@ async function startServer() {
     res.json({ clients });
   });
 
+  app.get('/admin/account-tokens', (req, res) => {
+    const list = tokens ? tokens.getAccountTokens() : [];
+    const masked = list.map((item) => ({
+      id: item.id,
+      email: item.email || 'unknown',
+      maskedToken: item.token.length > 20 ? item.token.slice(0, 10) + '...' + item.token.slice(-10) : '***',
+    }));
+    res.json({ count: masked.length, tokens: masked });
+  });
+
+  app.post('/admin/account-tokens', (req, res) => {
+    const body = req.body || {};
+    const raw = body.tokens || body.token;
+    if (!raw) return res.status(400).json({ error: 'No tokens provided' });
+    const tokenList = Array.isArray(raw)
+      ? raw
+      : typeof raw === 'string'
+        ? raw.split(/[\r\n,]+/).map((s) => s.trim()).filter(Boolean)
+        : [];
+    const count = tokens ? tokens.insertAccountTokens(tokenList) : 0;
+    res.json({ success: true, count, added: tokenList.length });
+  });
+
+  app.delete('/admin/account-tokens/:id', (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
+    if (tokens) tokens.removeAccountToken(id);
+    res.json({ success: true, count: tokens ? tokens.countAccountTokens() : 0 });
+  });
+
   app.post('/admin/session/clear', withAuth, (req, res) => {
     conversations.clear();
     console.log('[Session] All session histories cleared.');
@@ -652,7 +686,7 @@ async function startServer() {
 ║  Mode:          DIRECT HTTP (no Docker required)              ║
 ║  Dashboard:     http://localhost:${config.port}                          ║
 ║  OpenAI API:    http://localhost:${config.port}/v1/chat/completions      ║
-║  Token DB:      ${config.dbPath} (${tokens.count()} tokens)
+║  Token DB:      ${config.dbPath} (${tokens.count()} device, ${tokens.countAccountTokens()} account tokens)
 ║  Auth Token:    ${config.authToken}
 ╚═══════════════════════════════════════════════════════════════╝
 `);

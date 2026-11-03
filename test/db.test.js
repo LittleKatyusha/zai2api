@@ -33,6 +33,33 @@ test('TokenStore operations', () => {
   assert.equal(store.count(), 0);
   assert.equal(store.getNext(), null);
 
+  // Test account tokens
+  assert.equal(store.countAccountTokens(), 0);
+  const jwt1 = 'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6InVzZXJfMSIsImVtYWlsIjoidXNlcjFAZXhhbXBsZS5jb20ifQ.sig1';
+  const jwt2 = 'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6InVzZXJfMiIsImVtYWlsIjoidXNlcjJAZXhhbXBsZS5jb20ifQ.sig2';
+
+  store.insertAccountTokens([jwt1, jwt2]);
+  assert.equal(store.countAccountTokens(), 2);
+
+  const accList = store.getAccountTokens();
+  assert.equal(accList.length, 2);
+  assert.equal(accList[0].email, 'user1@example.com');
+  assert.equal(accList[1].email, 'user2@example.com');
+
+  // Round robin check
+  const first = store.getNextAccountToken();
+  const second = store.getNextAccountToken();
+  const third = store.getNextAccountToken();
+  assert.equal(first.token, jwt1);
+  assert.equal(second.token, jwt2);
+  assert.equal(third.token, jwt1);
+
+  store.removeAccountToken(accList[0].id);
+  assert.equal(store.countAccountTokens(), 1);
+
+  store.removeAccountToken(jwt2);
+  assert.equal(store.countAccountTokens(), 0);
+
   store.close();
   if (fs.existsSync(testDb)) fs.unlinkSync(testDb);
   const shm = testDb + '-shm';

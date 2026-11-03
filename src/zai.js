@@ -328,10 +328,21 @@ function doZAIRequest(server, prompt, opts, callbacks) {
         return reject(new Error('captcha verification failed — check tokens.sqlite'));
       }
 
-      const signature = zaiSession.generateSignature(prompt, zaiSession.token, zaiSession.userID);
+      // Pick pooled account token if present, otherwise fallback to session token
+      const acc = tokens ? tokens.getNextAccountToken() : null;
+      let token = zaiSession.token;
+      let userID = zaiSession.userID;
+
+      if (acc && acc.token) {
+        token = acc.token;
+        const payload = jwtPayload(token);
+        if (payload && payload.id) userID = payload.id;
+      }
+
+      const signature = zaiSession.generateSignature(prompt, token, userID);
 
       const headers = {
-        authorization: `Bearer ${zaiSession.token}`,
+        authorization: `Bearer ${token}`,
         'content-type': 'application/json',
         'x-fe-Version': zaiSession.feVersion,
         'x-region': 'overseas',
@@ -370,6 +381,10 @@ function doZAIRequest(server, prompt, opts, callbacks) {
         }
 
         if (res.statusCode === 401) {
+          if (acc && acc.id && tokens) {
+            console.log(`[ZAI] 401 unauthorized for account token ${acc.email || acc.id}, removing from pool`);
+            tokens.removeAccountToken(acc.id);
+          }
           const err = new Error('ZAI unauthorized');
           err.isUnauthorized = true;
           return reject(err);
