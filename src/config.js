@@ -13,7 +13,7 @@ const authDisabled =
 
 const config = {
   host: process.env.HOST || '0.0.0.0',
-  port: parseInt(process.env.PORT || '8080', 10),
+  port: parseInt(process.env.PORT || '8088', 10),
   authEnabled: !authDisabled,
   authToken: rawAuthToken || 'd3vin',
   zaiToken: (process.env.ZAI_TOKEN || '').trim(),

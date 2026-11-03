@@ -4,9 +4,9 @@ services:
     container_name: zai2api
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8088:8088"
     environment:
-      - PORT=8080
+      - PORT=8088
       - HOST=0.0.0.0
       - AUTH_TOKEN=d3vin
       - DB_PATH=/app/data/tokens.sqlite

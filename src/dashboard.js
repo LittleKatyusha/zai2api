@@ -170,7 +170,7 @@ async function refresh() {
     }
 
     document.getElementById('portVal').textContent = d.port || '—';
-    document.getElementById('endpointVal').textContent = 'http://127.0.0.1:' + (d.port || '8080') + '/v1';
+    document.getElementById('endpointVal').textContent = 'http://127.0.0.1:' + (d.port || '8088') + '/v1';
     document.getElementById('tokenCountVal').textContent = (d.tokenCount != null ? d.tokenCount + ' tokens' : '—');
     document.getElementById('accountCountVal').textContent = (d.accountTokenCount != null ? d.accountTokenCount + ' accounts' : '0 accounts');
     document.getElementById('userVal').textContent = d.userName || '—';
@@ -253,7 +253,7 @@ setInterval(refresh, 5000);
 
 function renderDashboard(host, authToken) {
   let html = dashboardHTML;
-  html = html.replace(/__HOST__/g, host || 'localhost:8080');
+  html = html.replace(/__HOST__/g, host || 'localhost:8088');
   html = html.replace(/__AUTH_TOKEN__/g, authToken || 'sk-zai-••••••••');
   return html;
 }

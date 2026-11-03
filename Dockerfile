@@ -15,6 +15,6 @@ RUN npm install --omit=dev --ignore-scripts
 
 COPY src/ ./src/
 
-EXPOSE 8080
+EXPOSE 8088
 
 CMD ["node", "src/index.js"]
